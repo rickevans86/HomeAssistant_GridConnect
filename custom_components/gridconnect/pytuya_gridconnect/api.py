@@ -164,9 +164,10 @@ class GridConnectCloud:
             redacted = {k: v for k, v in envelope.items() if k != "result"}
             print(f"[gridconnect] {wire_api} -> {redacted}")
 
-        if not envelope.get("success"):
-            # Surface Tuya's real diagnosis: errorCode is the machine code
-            # (e.g. "SIGN_INVALID", "USER_PASSWD_WRONG"), errorMsg the text.
+        # A successful reply is `{t, sign, result}` with NO "success" field; a
+        # failure carries errorCode/errorMsg (and success=false). So only treat
+        # an explicit error marker as failure, not the absence of "success".
+        if envelope.get("success") is False or envelope.get("errorCode"):
             code = envelope.get("errorCode")
             msg = envelope.get("errorMsg")
             detail = " / ".join(str(x) for x in (code, msg) if x) or str(envelope)

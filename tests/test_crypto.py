@@ -73,6 +73,47 @@ def test_password_is_md5_then_rsa_pkcs1():
     assert decrypted.decode() == hashlib.md5(b"hunter2").hexdigest()
 
 
+def test_success_envelope_has_no_success_field():
+    """Regression: the live api.json success reply is {t, sign, result} with no
+    "success" key, so the client must not treat its absence as a failure.
+    A failure instead carries errorCode (and success=false)."""
+    import json
+
+    from pytuya_gridconnect import api
+
+    rid = "fixed-request-id"
+    inner = json.dumps({"publicKey": "c0ffee", "exponent": "10001", "token": "T"})
+    enc = crypto.encrypt_body(crypto.derive_body_key(rid, None), inner)
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        def __init__(self, p):
+            self._p = p
+
+        def json(self):
+            return self._p
+
+    class _OK:
+        def post(self, *a, **k):
+            # mirror the request's requestId so the reply key matches
+            return _Resp({"t": 1, "sign": "x", "result": enc})
+
+    client = api.GridConnectCloud(region="us", session=_OK())
+    # feed our fixed request id by patching uuid once
+    import pytuya_gridconnect.api as m
+
+    orig = m.uuid.uuid4
+    m.uuid.uuid4 = lambda: rid
+    try:
+        out = client._call("thing.m.user.email.token.create", "1.0", {"x": 1},
+                           session_required=False)
+    finally:
+        m.uuid.uuid4 = orig
+    assert out["token"] == "T"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
