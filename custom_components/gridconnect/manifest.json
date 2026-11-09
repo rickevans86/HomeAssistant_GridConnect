@@ -1,0 +1,12 @@
+{
+  "domain": "gridconnect",
+  "name": "Grid Connect",
+  "codeowners": ["@rickevans86"],
+  "config_flow": true,
+  "documentation": "https://github.com/rickevans86/HomeAssistant_GridConnect",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/rickevans86/HomeAssistant_GridConnect/issues",
+  "requirements": ["requests>=2.28", "cryptography>=39.0"],
+  "version": "0.1.0"
+}

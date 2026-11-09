@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Grid Connect",
+        "description": "Sign in with the same email and password you use in the Grid Connect app. Country code is your phone dialling code (Australia = 61). If sign-in fails, try a different data centre region.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "country_code": "Country code",
+          "region": "Region"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Could not sign in. Check the email, password and region."
+    },
+    "abort": {
+      "already_configured": "This account is already set up."
+    }
+  }
+}

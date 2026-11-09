@@ -1,0 +1,7 @@
+# Runtime deps for the CLI and the client library.
+requests>=2.28
+cryptography>=39.0
+
+# Only needed by tools/extract_app_credentials.py to recompute the cert hash
+# without the openssl CLI (optional):
+# androguard>=4.1

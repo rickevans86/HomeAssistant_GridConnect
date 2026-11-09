@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.apk
+devices.json
+.env
+.venv/
+build/
+tools_bmp_extractor/read_keys
+tools_bmp_extractor/extract_used_pixels
+tools_bmp_extractor/*.o
