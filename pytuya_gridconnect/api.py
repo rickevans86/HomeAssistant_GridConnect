@@ -37,6 +37,7 @@ from .const import (
     APP_KEY,
     APP_VERSION,
     DEFAULT_REGION,
+    PROBE_ORDER,
     REGIONS,
     SDK_VERSION,
     TTID,
@@ -91,14 +92,19 @@ class GridConnectCloud:
     def __init__(
         self,
         country_code: str = "61",
-        region: str = DEFAULT_REGION,
+        region: str = "us",
         *,
         lang: str = "en",
         timeout: float = 20.0,
         session: requests.Session | None = None,
     ) -> None:
+        if region not in REGIONS:
+            raise GridConnectError(
+                f"unknown region {region!r}; use one of {sorted(REGIONS)} "
+                "or login_autoregion()"
+            )
         self.country_code = country_code
-        self.region = region
+        self._region = region
         self.endpoint = REGIONS[region]
         self.lang = lang
         self.timeout = timeout
@@ -276,6 +282,34 @@ class GridConnectCloud:
     @property
     def logged_in(self) -> bool:
         return bool(self._sess.sid)
+
+    @property
+    def region(self) -> str:
+        return self._region
+
+    @classmethod
+    def login_autoregion(
+        cls, email: str, password: str, country_code: str = "61", **kwargs
+    ) -> "GridConnectCloud":
+        """Try every data centre until one accepts the login, and return that
+        logged-in client. An account lives on exactly one region; the rest report
+        it as not found. Raises GridConnectError if none accept it.
+        """
+        failures: list[str] = []
+        for region in PROBE_ORDER:
+            client = cls(country_code=country_code, region=region, **kwargs)
+            try:
+                client.login_email(email, password)
+            except GridConnectError as err:
+                _LOGGER.warning("[gridconnect] region %s rejected login: %s", region, err)
+                failures.append(f"{region}: {err}")
+                continue
+            _LOGGER.warning("[gridconnect] region %s accepted login", region)
+            return client
+        raise GridConnectError(
+            "no data centre accepted the login — "
+            + "; ".join(failures)
+        )
 
     # ---- devices -----------------------------------------------------------
 

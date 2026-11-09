@@ -35,16 +35,31 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         placeholders: dict[str, str] = {}
 
         if user_input is not None:
-            cloud = GridConnectCloud(
-                country_code=user_input[CONF_COUNTRY],
-                region=user_input[CONF_REGION],
-            )
+            region = user_input[CONF_REGION]
             try:
-                await self.hass.async_add_executor_job(
-                    cloud.login_email,
-                    user_input[CONF_EMAIL],
-                    user_input[CONF_PASSWORD],
-                )
+                if region == "auto":
+                    # Probe every data centre and keep the one that accepts the
+                    # login; store the discovered region so later runs skip probing.
+                    cloud = await self.hass.async_add_executor_job(
+                        lambda: GridConnectCloud.login_autoregion(
+                            user_input[CONF_EMAIL],
+                            user_input[CONF_PASSWORD],
+                            user_input[CONF_COUNTRY],
+                        )
+                    )
+                    user_input[CONF_REGION] = cloud.region
+                    _LOGGER.warning(
+                        "Grid Connect auto-probe selected region %s", cloud.region
+                    )
+                else:
+                    cloud = GridConnectCloud(
+                        country_code=user_input[CONF_COUNTRY], region=region
+                    )
+                    await self.hass.async_add_executor_job(
+                        cloud.login_email,
+                        user_input[CONF_EMAIL],
+                        user_input[CONF_PASSWORD],
+                    )
             except GridConnectError as err:
                 # Keep Tuya's real reason visible — it tells us whether this is a
                 # signing problem, a region/account mismatch or wrong credentials.
@@ -70,7 +85,7 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PASSWORD): cv.string,
                 vol.Required(CONF_COUNTRY, default=DEFAULT_COUNTRY): cv.string,
                 vol.Required(CONF_REGION, default=DEFAULT_REGION): vol.In(
-                    sorted(REGIONS)
+                    ["auto", *sorted(REGIONS)]
                 ),
             }
         )

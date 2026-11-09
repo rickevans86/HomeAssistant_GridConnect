@@ -49,13 +49,19 @@ SIGN_ALLOWLIST = frozenset({
     "sid", "chKey", "sp",
 })
 
-# Tuya regional data centres. Grid Connect (AU) accounts usually live on the
-# Western-America ("us") or Central-Europe ("eu") cluster; the client tries each
-# until one accepts the account.
+# Tuya regional data centres (api.json endpoints). An account exists on exactly
+# one of these; the right one accepts the login and the others report the account
+# as not found. The "az" variants are the Azure-hosted Eastern-US / Western-EU
+# clusters, which some accounts (including AU ones) land on.
 REGIONS = {
     "us": "https://a1.tuyaus.com/api.json",
+    "us-az": "https://a1-ueaz.tuyaus.com/api.json",
     "eu": "https://a1.tuyaeu.com/api.json",
+    "eu-az": "https://a1-weaz.tuyaeu.com/api.json",
     "in": "https://a1.tuyain.com/api.json",
     "cn": "https://a1.tuyacn.com/api.json",
 }
-DEFAULT_REGION = "us"
+DEFAULT_REGION = "auto"
+
+# Order to try when auto-probing. AU accounts are most often on these first few.
+PROBE_ORDER = ["us", "eu", "in", "us-az", "eu-az", "cn"]
