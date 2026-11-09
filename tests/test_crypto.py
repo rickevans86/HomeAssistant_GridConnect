@@ -82,7 +82,15 @@ def test_success_envelope_has_no_success_field():
     from pytuya_gridconnect import api
 
     rid = "fixed-request-id"
-    inner = json.dumps({"publicKey": "c0ffee", "exponent": "10001", "token": "T"})
+    # The decrypted payload is itself an envelope with the data under "result".
+    inner = json.dumps(
+        {
+            "result": {"publicKey": "c0ffee", "exponent": "10001", "token": "T"},
+            "t": 1,
+            "success": True,
+            "status": "ok",
+        }
+    )
     enc = crypto.encrypt_body(crypto.derive_body_key(rid, None), inner)
 
     class _Resp:

@@ -164,25 +164,38 @@ class GridConnectCloud:
             redacted = {k: v for k, v in envelope.items() if k != "result"}
             print(f"[gridconnect] {wire_api} -> {redacted}")
 
-        # A successful reply is `{t, sign, result}` with NO "success" field; a
-        # failure carries errorCode/errorMsg (and success=false). So only treat
-        # an explicit error marker as failure, not the absence of "success".
+        # The OUTER wrapper is `{t, sign, result}`: `result` is the et=3 blob.
+        # An unencrypted error (e.g. a bad signature) instead arrives here with
+        # errorCode and no blob, so catch that first.
         if envelope.get("success") is False or envelope.get("errorCode"):
-            code = envelope.get("errorCode")
-            msg = envelope.get("errorMsg")
-            detail = " / ".join(str(x) for x in (code, msg) if x) or str(envelope)
-            raise GridConnectError(f"{api}: {detail}")
+            raise GridConnectError(f"{api}: {self._err_detail(envelope)}")
 
-        result = envelope.get("result")
-        if isinstance(result, str) and result:
-            # et=3 encrypts the reply with the same per-request key.
-            ecode = self._sess.ecode if session_required else None
-            body_key = crypto.derive_body_key(request_id, ecode)
-            try:
-                result = json.loads(crypto.decrypt_body(body_key, result))
-            except Exception as err:  # noqa: BLE001 - surface any decrypt/JSON failure
-                raise GridConnectError(f"{api}: cannot decrypt reply: {err}") from err
-        return result
+        blob = envelope.get("result")
+        if not (isinstance(blob, str) and blob):
+            return blob  # some calls return nothing to decrypt
+
+        ecode = self._sess.ecode if session_required else None
+        body_key = crypto.derive_body_key(request_id, ecode)
+        try:
+            inner = json.loads(crypto.decrypt_body(body_key, blob))
+        except Exception as err:  # noqa: BLE001 - surface any decrypt/JSON failure
+            raise GridConnectError(f"{api}: cannot decrypt reply: {err}") from err
+
+        # The decrypted payload is itself the standard Tuya envelope:
+        # {"result": <data>, "t": ..., "success": true, "status": "ok"}.
+        if isinstance(inner, dict) and "success" in inner:
+            if not inner.get("success") or inner.get("errorCode"):
+                raise GridConnectError(f"{api}: {self._err_detail(inner)}")
+            return inner.get("result")
+        return inner
+
+    @staticmethod
+    def _err_detail(envelope: dict[str, Any]) -> str:
+        code = envelope.get("errorCode")
+        msg = envelope.get("errorMsg")
+        if code or msg:
+            return " / ".join(str(x) for x in (code, msg) if x)
+        return str({k: v for k, v in envelope.items() if k != "result"})
 
     # ---- auth --------------------------------------------------------------
 
