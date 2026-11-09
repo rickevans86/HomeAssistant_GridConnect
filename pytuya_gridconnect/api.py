@@ -17,6 +17,7 @@ Flow
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 import time
@@ -25,6 +26,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import requests
+
+_LOGGER = logging.getLogger(__name__)
+
+# Bump when the login/crypto path changes, so logs confirm which code is live.
+CLIENT_REVISION = "decimal-rsa-r3"
 
 from . import crypto
 from .const import (
@@ -216,6 +222,22 @@ class GridConnectCloud:
                 else type(token_info).__name__
             )
             raise GridConnectError(f"token.create returned unexpected shape: {shape}")
+
+        # One-line, non-sensitive diagnostic so the HA log proves which revision
+        # is live and that the RSA key parsed to a sane modulus. The publicKey is
+        # an ephemeral server key, not a secret; the password never appears here.
+        try:
+            _modulus_bits = int(token_info["publicKey"], 10).bit_length()
+        except (ValueError, TypeError):
+            _modulus_bits = -1
+        _LOGGER.warning(
+            "[gridconnect %s] token OK; publicKey chars=%d exponent=%r "
+            "modulus_bits=%d",
+            CLIENT_REVISION,
+            len(str(token_info["publicKey"])),
+            token_info["exponent"],
+            _modulus_bits,
+        )
 
         try:
             passwd = crypto.encrypt_password(
