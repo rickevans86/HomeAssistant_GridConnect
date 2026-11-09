@@ -66,9 +66,11 @@ def test_et3_body_roundtrip():
 
 
 def test_password_is_md5_then_rsa_pkcs1():
+    # The app supplies modulus and exponent as DECIMAL strings (BigInteger radix
+    # 10), so encrypt_password must parse them as base 10, not hex.
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pn = key.public_key().public_numbers()
-    enc = crypto.encrypt_password("hunter2", format(pn.n, "x"), format(pn.e, "x"))
+    enc = crypto.encrypt_password("hunter2", str(pn.n), str(pn.e))
     decrypted = key.decrypt(bytes.fromhex(enc), padding.PKCS1v15())
     assert decrypted.decode() == hashlib.md5(b"hunter2").hexdigest()
 

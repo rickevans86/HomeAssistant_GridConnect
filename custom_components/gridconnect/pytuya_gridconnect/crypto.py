@@ -102,17 +102,19 @@ def decrypt_body(key: bytes, result_b64: str) -> str:
     return plain.decode("utf-8")
 
 
-def encrypt_password(password: str, public_key_hex: str, exponent_hex: str) -> str:
+def encrypt_password(password: str, public_key: str, exponent: str) -> str:
     """Login password transform.
 
     The app sends ``passwd = hex( RSA_PKCS1v15( utf8( md5_hex(password) ) ) )``
-    with ``ifencrypt=1``, where the RSA public key (modulus + exponent) comes from
-    the ``*.token.create`` reply. Matches RSAUtil.encrypt / MD5Util.md5AsBase64
-    (the latter actually returns lowercase hex despite its name).
+    with ``ifencrypt=1``. The RSA public key (modulus + exponent) comes from the
+    ``*.token.create`` reply, where both are **decimal** integer strings — the app
+    parses them with ``new BigInteger(str)`` (radix 10), not hex. ``md5_hex`` is
+    the lowercase hex MD5 of the password (MD5Util.md5AsBase64 returns hex despite
+    its name; HexUtil emits lowercase).
     """
     md5_hex = hashlib.md5(password.encode("utf-8")).hexdigest()
-    modulus = int(public_key_hex, 16)
-    exponent = int(exponent_hex, 16)
-    pub = RSAPublicNumbers(exponent, modulus).public_key()
+    modulus = int(public_key, 10)
+    exp = int(exponent, 10)
+    pub = RSAPublicNumbers(exp, modulus).public_key()
     ciphertext = pub.encrypt(md5_hex.encode("utf-8"), padding.PKCS1v15())
     return ciphertext.hex()
