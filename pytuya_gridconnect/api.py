@@ -194,9 +194,23 @@ class GridConnectCloud:
             {"countryCode": self.country_code, "email": email},
             session_required=False,
         )
-        passwd = crypto.encrypt_password(
-            password, token_info["publicKey"], token_info["exponent"]
-        )
+        if not isinstance(token_info, dict) or not {
+            "publicKey", "exponent", "token"
+        } <= token_info.keys():
+            shape = (
+                list(token_info.keys())
+                if isinstance(token_info, dict)
+                else type(token_info).__name__
+            )
+            raise GridConnectError(f"token.create returned unexpected shape: {shape}")
+
+        try:
+            passwd = crypto.encrypt_password(
+                password, token_info["publicKey"], token_info["exponent"]
+            )
+        except Exception as err:  # noqa: BLE001
+            raise GridConnectError(f"password encryption failed: {err}") from err
+
         user = self._call(
             "thing.m.user.email.password.login",
             "3.0",
@@ -210,13 +224,19 @@ class GridConnectCloud:
             },
             session_required=False,
         )
+        if not isinstance(user, dict):
+            raise GridConnectError(
+                f"login returned unexpected shape: {type(user).__name__}"
+            )
         self._sess = _Session(
             sid=user.get("sid", ""),
             ecode=user.get("ecode"),
             uid=user.get("uid", ""),
         )
         if not self._sess.sid:
-            raise GridConnectError("login succeeded but no session id returned")
+            raise GridConnectError(
+                f"login returned no session id; fields: {list(user.keys())}"
+            )
 
     @property
     def logged_in(self) -> bool:

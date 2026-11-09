@@ -51,6 +51,12 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.error("Grid Connect sign-in failed: %s", err)
                 errors["base"] = "invalid_auth"
                 placeholders["error_detail"] = str(err)
+            except Exception as err:  # noqa: BLE001 - surface the real cause
+                # Anything not already a GridConnectError: show the type + message
+                # (and log the traceback) instead of HA's opaque "Unknown error".
+                _LOGGER.exception("Grid Connect sign-in: unexpected error")
+                errors["base"] = "invalid_auth"
+                placeholders["error_detail"] = f"{type(err).__name__}: {err}"
             else:
                 await self.async_set_unique_id(user_input[CONF_EMAIL].lower())
                 self._abort_if_unique_id_configured()
