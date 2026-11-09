@@ -13,7 +13,7 @@
       }
     },
     "error": {
-      "invalid_auth": "Could not sign in. Check the email, password and region."
+      "invalid_auth": "Could not sign in: {error_detail}"
     },
     "abort": {
       "already_configured": "This account is already set up."

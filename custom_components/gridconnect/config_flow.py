@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -19,6 +20,8 @@ from .const import (
     DOMAIN,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a Grid Connect config flow."""
@@ -29,6 +32,7 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
 
         if user_input is not None:
             cloud = GridConnectCloud(
@@ -41,8 +45,12 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     user_input[CONF_EMAIL],
                     user_input[CONF_PASSWORD],
                 )
-            except GridConnectError:
+            except GridConnectError as err:
+                # Keep Tuya's real reason visible — it tells us whether this is a
+                # signing problem, a region/account mismatch or wrong credentials.
+                _LOGGER.error("Grid Connect sign-in failed: %s", err)
                 errors["base"] = "invalid_auth"
+                placeholders["error_detail"] = str(err)
             else:
                 await self.async_set_unique_id(user_input[CONF_EMAIL].lower())
                 self._abort_if_unique_id_configured()
@@ -61,5 +69,8 @@ class GridConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(
-            step_id="user", data_schema=schema, errors=errors
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=placeholders,
         )

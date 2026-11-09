@@ -17,6 +17,8 @@ Flow
 from __future__ import annotations
 
 import json
+import os
+import secrets
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -97,6 +99,10 @@ class GridConnectCloud:
         self._http = session or requests.Session()
         self._sess = _Session()
         self._chkey = crypto.channel_key()
+        # Per-install device id the app sends on every request (44 hex chars).
+        # Stable for the life of this client so token.create and login agree.
+        self._device_id = secrets.token_hex(22)
+        self._debug = os.environ.get("GRIDCONNECT_DEBUG") == "1"
 
     # ---- low-level request -------------------------------------------------
 
@@ -124,6 +130,7 @@ class GridConnectCloud:
             "sdkVersion": SDK_VERSION,
             "time": str(int(time.time())),
             "requestId": request_id,
+            "deviceId": self._device_id,
             "et": "3",
             "cp": "gzip",
             "chKey": self._chkey,
@@ -153,9 +160,17 @@ class GridConnectCloud:
         except (requests.RequestException, ValueError) as err:
             raise GridConnectError(f"{api}: transport error: {err}") from err
 
+        if self._debug:
+            redacted = {k: v for k, v in envelope.items() if k != "result"}
+            print(f"[gridconnect] {wire_api} -> {redacted}")
+
         if not envelope.get("success"):
-            code = envelope.get("errorCode") or envelope.get("errorMsg") or envelope
-            raise GridConnectError(f"{api}: {code}")
+            # Surface Tuya's real diagnosis: errorCode is the machine code
+            # (e.g. "SIGN_INVALID", "USER_PASSWD_WRONG"), errorMsg the text.
+            code = envelope.get("errorCode")
+            msg = envelope.get("errorMsg")
+            detail = " / ".join(str(x) for x in (code, msg) if x) or str(envelope)
+            raise GridConnectError(f"{api}: {detail}")
 
         result = envelope.get("result")
         if isinstance(result, str) and result:
