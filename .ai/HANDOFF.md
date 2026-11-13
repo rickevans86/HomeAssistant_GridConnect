@@ -33,5 +33,13 @@ your session. Keep it short and current._
 4. Independent backlog items safe to start now: #4 (session refresh) is code-only
    and doesn't need hardware; #5 (default-branch cleanup) needs repo admin.
 
+**Owner actions required (only the owner can do these)**
+1. **Merge PR #7** into `main` to land this scaffold.
+2. **Set the GitHub default branch to `main`** (Settings → Branches). The CCR proxy
+   refuses repository-settings writes, so no agent can do this. **Until then, agents
+   clone `reverse-engineer-integration` by default and will NOT see `AGENTS.md` /
+   `.ai/`** — clone `main` explicitly, or do this step. (This is the first half of
+   Issue #5.)
+
 **Shared records updated:** Yes (this file, TASK_BOARD, AI_ACTIVITY_LOG).
-**Remote sync:** PR pushed; `.ai/` not yet on `main` until the PR merges.
+**Remote sync:** PR #7 pushed; `.ai/` not yet on `main` until it merges.
